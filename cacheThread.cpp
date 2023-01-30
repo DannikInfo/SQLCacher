@@ -3,8 +3,7 @@
 time_t curr_time;
 tm * curr_tm;
 char dt[50];
-
-std::mutex cacheThread::m;
+int maxTimer;
 
 void cacheThread::getFilesRecursive(const std::filesystem::path& path, std::list<std::string>& SQLs) {
     if(!std::filesystem::exists("cache")){
@@ -38,18 +37,41 @@ void cacheThread::getFilesRecursive(const std::filesystem::path& path, std::list
     }
 }
 
-void cacheThread::run(const std::string &path, int num, int delay){
-    std::thread::id threadID = std::this_thread::get_id();
-    logger::setThread("CacheThread-"+std::to_string(num), threadID);
+void cacheThread::parseCachePaths(const std::list<std::string> &listCachesStr, std::vector<cacheThread::cache> &caches){
+    std::vector<std::string> vecToken;
+    maxTimer = 0;
+    for (const auto &item: listCachesStr){
+        vecToken.clear();
+        utils::tokenize(item, ":", vecToken);
+        cacheThread::cache c;
+        c.delay = std::stoi(vecToken[0]);
+        if(c.delay > maxTimer)
+            maxTimer = c.delay;
+        c.path = vecToken[1];
+        caches.emplace_back(c);
+    }
+}
+
+void cacheThread::run(){
+    std::thread::id cThreadID = std::this_thread::get_id();
+    logger::setThread("CacheThread", cThreadID);
+
+    std::vector<cacheThread::cache> vecCache;
+    parseCachePaths(config::get<std::list<std::string>>(CACHE_PATHS), vecCache);
 
     std::string query;
     std::list<std::string> SQLs;
-
+    int timer = 0;
     while(true){
         SQLs.clear();
+        if(timer > maxTimer)
+            timer = 0;
 
-        logger::info("Start check SQL cache");
-        getFilesRecursive("cache", SQLs);
+        //logger::info("Start check SQL cache");
+        for (const auto &item: vecCache){
+            if(timer % item.delay == 0 && timer != 1 && timer != 0 || item.delay == 1)
+                getFilesRecursive(item.path, SQLs);
+        }
 
         if(!SQLs.empty()) {
             logger::info("Found SQL cache, start process upload..");
@@ -59,7 +81,6 @@ void cacheThread::run(const std::string &path, int num, int delay){
                 std::ifstream f(item, std::ios::in);
                 if(f.is_open()) {
                     query = std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-                    m.lock();
                     if(DEBUG) logger::success("File " + item + " was open and read");
                 }else{
                     logger::error("File "+item+" failed to open!");
@@ -82,10 +103,10 @@ void cacheThread::run(const std::string &path, int num, int delay){
 
                 std::filesystem::remove(item);
             }
-            logger::info("SQL cache handled, sleep for "+std::to_string(delay) + "sec.");
-        }else {
-            logger::info("SQL cache not found, sleep for "+std::to_string(delay) + "sec.");
+            logger::info("SQL cache handled, waiting...");
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+
+        timer++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }

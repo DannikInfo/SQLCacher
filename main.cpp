@@ -1,13 +1,10 @@
 #include <iostream>
 #include <config.h>
-#include <utils.h>
 
 #include <logger.h>
 #include <list>
 #include "configPathes.h"
 #include "cacheThread.h"
-
-std::list<std::thread> threads;
 
 int main() {
     logger::init("SQLCache");
@@ -27,15 +24,8 @@ int main() {
     config::set(CACHE_PATHS, cachePaths);
     config::loadConfig();
 
-    cachePaths = config::get<std::list<std::string>>(CACHE_PATHS);
+    std::thread sqlT(cacheThread::run);
 
-    std::vector<std::string> vecToken;
-    int i = 0;
-    for (const auto &item: cachePaths){
-        utils::tokenize(item, ":", vecToken);
-        threads.emplace_back(std::thread(cacheThread::run, vecToken[1], i, std::stoi(vecToken[0])));
-        i++;
-    }
     std::string s;
     std::cin >> s;
 }

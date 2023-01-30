@@ -10,17 +10,21 @@
 #include <thread>
 #include <logger.h>
 #include <utils.h>
-#include <mutex>
 
 #include "configPathes.h"
 #include "SQLManager.h"
 class cacheThread : public std::thread{
-private:
-    static std::mutex m;
 public:
+    struct cache{
+        int delay;
+        std::string path;
+    };
+
     static void getFilesRecursive(const std::filesystem::path &path, std::list<std::string> &SQLs);
 
-    static void run(const std::string &path, int num, int delay);
+    static void run();
+
+    static void parseCachePaths(const std::list<std::string> &listCachesStr, std::vector<cacheThread::cache> &caches);
 };
 
 
