@@ -28,8 +28,8 @@ void cacheThread::getFilesRecursive(const std::filesystem::path& path, std::list
                         logger::info("Found non sql file: " + sql);
                 }
             } else {
-                if (std::filesystem::is_empty(p) && !strstr(p.path().c_str(), dt))
-                    std::filesystem::remove(p);
+                if (std::filesystem::is_empty(p.path()) && !strstr(p.path().c_str(), dt))
+                    std::filesystem::remove(p.path());
             }
         }
     }catch (std::exception &ex){
@@ -97,10 +97,14 @@ void cacheThread::run(){
 
                     std::vector<std::string> vecStr;
                     utils::tokenize(item, "/", vecStr);
-
-                    std::filesystem::copy_file(item, "cache/bad/"+vecStr[vecStr.size()-1]);
+                    logger::warn(vecStr[vecStr.size() - 1]);
+                    try {
+                        std::filesystem::copy_file(item, "cache/bad/" + vecStr[vecStr.size() - 1]);
+                    }catch(std::exception &ex2){
+                        logger::error("Copy " +item+ " ERROR: "+ ex.what());
+                        continue;
+                    }
                 }
-
                 std::filesystem::remove(item);
             }
             logger::info("SQL cache handled, waiting...");
