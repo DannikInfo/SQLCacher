@@ -2,15 +2,19 @@
 #include <config.h>
 
 #include <logger.h>
-#include <list>
+#include <set>
 #include "configPathes.h"
 #include "cacheThread.h"
 
+using namespace std;
+
 int main() {
+    //Initialization logging
     logger::init("SQLCache");
-    std::thread::id mainThreadID = std::this_thread::get_id();
+    thread::id mainThreadID = this_thread::get_id();
     logger::setThread("MainThread", mainThreadID);
 
+    //Initialization configuration
     config::init("SQLCache");
     config::set(DB_URL, "localhost");
     config::set(DB_USER, "root");
@@ -18,14 +22,15 @@ int main() {
     config::set(DB_NAME, "ai");
     config::set(DEBUG, false);
 
-    std::list<std::string> cachePaths;
-    cachePaths.emplace_back("30:/home/user/AIServer/cache");
+    set<string> cachePaths;
+    cachePaths.insert("30:/home/user/AIServer/cache");
 
     config::set(CACHE_PATHS, cachePaths);
     config::loadConfig();
 
-    std::thread sqlT(cacheThread::run);
+    //Start cache task
+    thread sqlT(cacheThread::run);
 
-    std::string s;
-    std::cin >> s;
+    string s;
+    cin >> s;
 }

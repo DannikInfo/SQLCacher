@@ -1,7 +1,8 @@
 #ifndef SQLCACHE_CACHETHREAD_H
 #define SQLCACHE_CACHETHREAD_H
 
-#include <list>
+#include <set>
+#include <vector>
 #include <config.h>
 #include <cppconn/driver.h>
 #include <cppconn/resultset.h>
@@ -13,18 +14,21 @@
 
 #include "configPathes.h"
 #include "SQLManager.h"
-class cacheThread : public std::thread{
+
+using namespace std;
+
+class cacheThread : public thread{
 public:
     struct cache{
         int delay;
-        std::string path;
+        string path;
     };
 
-    static void getFilesRecursive(const std::filesystem::path &path, std::list<std::string> &SQLs);
+    static void getFilesRecursive(const filesystem::path &path, set<string> &SQLs);
 
     static void run();
 
-    static void parseCachePaths(const std::list<std::string> &listCachesStr, std::vector<cacheThread::cache> &caches);
+    static void parseCachePaths(const set<string> &listCachesStr, vector<cacheThread::cache> &caches);
 };
 
 

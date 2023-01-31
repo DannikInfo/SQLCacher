@@ -8,12 +8,12 @@ void SQLManager::renovateConnection(){
     connected = con != nullptr && (con->isValid() || con->reconnect());
     while(!connected) {
         try {
-            con = driver->connect(config::get<std::string>(DB_URL), config::get<std::string>(DB_USER),config::get<std::string>(DB_PASS));
-            con->setSchema(config::get<std::string>(DB_NAME));
+            con = driver->connect(config::get<string>(DB_URL), config::get<string>(DB_USER),config::get<string>(DB_PASS));
+            con->setSchema(config::get<string>(DB_NAME));
             connected = con != nullptr && (con->isValid() || con->reconnect());
         } catch (sql::SQLException &ex) {
             logger::warn("Connection to server is failed, try reconnecting in 5sec");
-            std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+            this_thread::sleep_for(chrono::milliseconds(5000));
         }
     }
 }
@@ -29,3 +29,4 @@ sql::Connection *SQLManager::getConnection() {
 bool SQLManager::isConnected() {
     return connected;
 }
+

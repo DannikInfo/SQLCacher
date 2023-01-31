@@ -5,9 +5,10 @@ tm * curr_tm;
 char dt[50];
 int maxTimer;
 
-void cacheThread::getFilesRecursive(const std::filesystem::path& path, std::list<std::string>& SQLs) {
-    if(!std::filesystem::exists("cache")){
-        std::filesystem::create_directory("cache");
+//Search all .sql files in path
+void cacheThread::getFilesRecursive(const filesystem::path& path, set<string>& SQLs) {
+    if(!filesystem::exists(path)) {
+        logger::error(path.string() + " not exists!");
         return;
     }
 
@@ -15,72 +16,81 @@ void cacheThread::getFilesRecursive(const std::filesystem::path& path, std::list
     curr_tm = localtime(&curr_time);
     bzero(dt, 50);
     strftime(dt, 50, "%d-%m-%Y", curr_tm);
+
     try {
-        for (const auto &p: std::filesystem::recursive_directory_iterator(path)) {
-            if (!std::filesystem::is_directory(p) && !strstr(p.path().c_str(), "bad")) {
-                std::string sql = p.path();
-                if (sql.substr(sql.length() - 4, sql.length()) == ".sql") {
+        for (const auto &p: filesystem::recursive_directory_iterator(path)) {
+            if (!is_directory(p) && !strstr(p.path().c_str(), "bad")) { //if path is directory and not contains bad
+                string sql = p.path();
+                if (sql.substr(sql.length() - 4, sql.length()) == ".sql") { //if path contains .sql extension, add to set
                     if (DEBUG)
                         logger::info("Found sql file: " + sql);
-                    SQLs.emplace_back(sql);
+                    SQLs.insert(sql);
                 } else {
                     if (DEBUG)
                         logger::info("Found non sql file: " + sql);
                 }
             } else {
-                if (std::filesystem::is_empty(p.path()) && !strstr(p.path().c_str(), dt))
-                    std::filesystem::remove(p.path());
+                if (filesystem::is_empty(p.path()) && !strstr(p.path().c_str(), dt)) //remove old xx_xx_xxxx dirs from cache directory
+                    filesystem::remove(p.path());
             }
         }
-    }catch (std::exception &ex){
+    }catch (exception &ex){
         logger::error(ex.what());
     }
 }
 
-void cacheThread::parseCachePaths(const std::list<std::string> &listCachesStr, std::vector<cacheThread::cache> &caches){
-    std::vector<std::string> vecToken;
+//Parsing delay:path from config
+void cacheThread::parseCachePaths(const set<string> &listCachesStr, vector<cacheThread::cache> &caches){
+    vector<string> vecToken;
     maxTimer = 0;
     for (const auto &item: listCachesStr){
         vecToken.clear();
         utils::tokenize(item, ":", vecToken);
+
         cacheThread::cache c;
-        c.delay = std::stoi(vecToken[0]);
+
+        c.delay = stoi(vecToken[0]);
         if(c.delay > maxTimer)
             maxTimer = c.delay;
+
         c.path = vecToken[1];
         caches.emplace_back(c);
     }
 }
 
+//Main thread method
 void cacheThread::run(){
-    std::thread::id cThreadID = std::this_thread::get_id();
+    //Initialize log thread naming
+    thread::id cThreadID = this_thread::get_id();
     logger::setThread("CacheThread", cThreadID);
 
-    std::vector<cacheThread::cache> vecCache;
-    parseCachePaths(config::get<std::list<std::string>>(CACHE_PATHS), vecCache);
+    //Parsing paths
+    vector<cacheThread::cache> vecCache;
+    parseCachePaths(config::get<set<string>>(CACHE_PATHS), vecCache);
 
-    std::string query;
-    std::list<std::string> SQLs;
+    string query;
+    set<string> SQLs;
     int timer = 0;
+
+    //Start infinity loop
     while(true){
         SQLs.clear();
         if(timer > maxTimer)
             timer = 0;
 
-        //logger::info("Start check SQL cache");
-        for (const auto &item: vecCache){
-            if(timer % item.delay == 0 && timer != 1 && timer != 0 || item.delay == 1)
+        for (const auto &item: vecCache){ //Checking if the timer value matches the specified delay. 1, 0 - excluded for
+            if(timer % item.delay == 0 && timer != 1 && timer != 0 || item.delay == 1) //fix false positives, if delay 1, it will run every cycle
                 getFilesRecursive(item.path, SQLs);
         }
 
-        if(!SQLs.empty()) {
+        if(!SQLs.empty()) { //if founded .sql files in paths
             logger::info("Found SQL cache, start process upload..");
             for (const auto &item: SQLs) {
                 SQLManager::renovateConnection();
 
-                std::ifstream f(item, std::ios::in);
-                if(f.is_open()) {
-                    query = std::string((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+                ifstream f(item, ios::in);
+                if(f.is_open()) { //try open and read .sql
+                    query = string((istreambuf_iterator<char>(f)), istreambuf_iterator<char>());
                     if(DEBUG) logger::success("File " + item + " was open and read");
                 }else{
                     logger::error("File "+item+" failed to open!");
@@ -88,28 +98,30 @@ void cacheThread::run(){
                 }
                 f.close();
 
-                try{
+                try{ //try to execute SQL from file
                     logger::success("File " +item+ " try execute with SQL "+ query);
                     SQLManager::getConnection()->createStatement()->execute(query);
-                }catch(sql::SQLException &ex){
+                }catch(sql::SQLException &ex){ //if execution failed, copy file to ./cache/bad
                     logger::error("File " +item+ " error on execute with SQL "+ query +" ERROR: "+ ex.what());
-                    if(!std::filesystem::exists("cache/bad")) std::filesystem::create_directories("cache/bad");
-                    std::string filePath = item;
-                    std::vector<std::string> vecStr;
+                    if(!filesystem::exists("cache/bad"))
+                        filesystem::create_directories("cache/bad");
+
+                    string filePath = item;
+                    vector<string> vecStr;
                     utils::tokenize(filePath, "/", vecStr);
-                    try {
-                        std::filesystem::copy_file(item, "cache/bad/" + vecStr[vecStr.size() - 1]);
-                    }catch(std::exception &ex2){
+                    try { //try to copy file
+                        filesystem::copy_file(item, "cache/bad/" + vecStr[vecStr.size() - 1]);
+                    }catch(exception &ex2){
                         logger::error("Copy " +item+ " ERROR: "+ ex2.what());
                         continue;
                     }
                 }
-                std::filesystem::remove(item);
+                filesystem::remove(item); //remove file after handling
             }
             logger::info("SQL cache handled, waiting...");
         }
 
         timer++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        this_thread::sleep_for(chrono::milliseconds(1000)); //1sec sleep for timer
     }
 }

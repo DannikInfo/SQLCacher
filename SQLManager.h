@@ -8,8 +8,11 @@
 #include <cppconn/statement.h>
 #include <cppconn/prepared_statement.h>
 #include <thread>
-#include "configPathes.h"
 #include <logger.h>
+
+#include "configPathes.h"
+
+using namespace std;
 
 class SQLManager {
 private:
