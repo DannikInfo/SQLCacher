@@ -94,14 +94,13 @@ void cacheThread::run(){
                 }catch(sql::SQLException &ex){
                     logger::error("File " +item+ " error on execute with SQL "+ query +" ERROR: "+ ex.what());
                     if(!std::filesystem::exists("cache/bad")) std::filesystem::create_directories("cache/bad");
-
+                    std::string filePath = item;
                     std::vector<std::string> vecStr;
-                    utils::tokenize(item, "/", vecStr);
-                    logger::warn(vecStr[vecStr.size() - 1]);
+                    utils::tokenize(filePath, "/", vecStr);
                     try {
                         std::filesystem::copy_file(item, "cache/bad/" + vecStr[vecStr.size() - 1]);
                     }catch(std::exception &ex2){
-                        logger::error("Copy " +item+ " ERROR: "+ ex.what());
+                        logger::error("Copy " +item+ " ERROR: "+ ex2.what());
                         continue;
                     }
                 }
