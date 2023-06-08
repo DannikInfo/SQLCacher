@@ -12,7 +12,7 @@ void SQLManager::renovateConnection(){
             con->setSchema(config::get<string>(DB_NAME));
             connected = con != nullptr && (con->isValid() || con->reconnect());
         } catch (sql::SQLException &ex) {
-            logger::warn("Connection to server is failed, try reconnecting in 5sec");
+            logger::warn("Connection to server is failed, try reconnecting in 5sec: " + string(ex.what()));
             this_thread::sleep_for(chrono::milliseconds(5000));
         }
     }

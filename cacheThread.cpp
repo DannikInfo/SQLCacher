@@ -28,6 +28,12 @@ void cacheThread::getFilesRecursive(const filesystem::path& path, set<string>& S
                 } else {
                     if (DEBUG)
                         logger::info("Found non sql file: " + sql);
+
+                    string filePath = sql;
+                    vector<string> vecStr;
+                    utils::tokenize(filePath, "/", vecStr);
+                    filesystem::copy_file(sql, "cache/bad/" + vecStr[vecStr.size() - 1]);
+                    filesystem::remove(sql);
                 }
             } else {
                 if (filesystem::is_empty(p.path()) && !strstr(p.path().c_str(), dt)) //remove old xx_xx_xxxx dirs from cache directory
@@ -85,6 +91,7 @@ void cacheThread::run(){
 
         if(!SQLs.empty()) { //if founded .sql files in paths
             logger::info("Found SQL cache, start process upload..");
+            int delayCounter = 0;
             for (const auto &item: SQLs) {
                 SQLManager::renovateConnection();
 
@@ -111,12 +118,19 @@ void cacheThread::run(){
                     utils::tokenize(filePath, "/", vecStr);
                     try { //try to copy file
                         filesystem::copy_file(item, "cache/bad/" + vecStr[vecStr.size() - 1]);
+                        filesystem::remove(item);
                     }catch(exception &ex2){
                         logger::error("Copy " +item+ " ERROR: "+ ex2.what());
                         continue;
                     }
                 }
                 filesystem::remove(item); //remove file after handling
+                delayCounter++;
+
+                if(delayCounter > 100){
+                    this_thread::sleep_for(chrono::milliseconds(100));
+                    delayCounter = 0;
+                }
             }
             logger::info("SQL cache handled, waiting...");
         }
