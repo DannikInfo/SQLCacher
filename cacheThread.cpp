@@ -2,7 +2,7 @@
 
 time_t curr_time;
 tm * curr_tm;
-char dt[50];
+char dt[50], dtt[50];
 int maxTimer;
 
 //Search all .sql files in path
@@ -28,12 +28,8 @@ void cacheThread::getFilesRecursive(const filesystem::path& path, set<string>& S
                 } else {
                     if (DEBUG)
                         logger::info("Found non sql file: " + sql);
-
-                    string filePath = sql;
-                    vector<string> vecStr;
-                    utils::tokenize(filePath, "/", vecStr);
-                    filesystem::copy_file(sql, "cache/bad/" + vecStr[vecStr.size() - 1]);
-                    filesystem::remove(sql);
+                    if(!badProcessing(sql))
+                        continue;
                 }
             } else {
                 if (filesystem::is_empty(p.path()) && !strstr(p.path().c_str(), dt)) //remove old xx_xx_xxxx dirs from cache directory
@@ -110,19 +106,8 @@ void cacheThread::run(){
                     SQLManager::getConnection()->createStatement()->execute(query);
                 }catch(sql::SQLException &ex){ //if execution failed, copy file to ./cache/bad
                     logger::error("File " +item+ " error on execute with SQL "+ query +" ERROR: "+ ex.what());
-                    if(!filesystem::exists("cache/bad"))
-                        filesystem::create_directories("cache/bad");
-
-                    string filePath = item;
-                    vector<string> vecStr;
-                    utils::tokenize(filePath, "/", vecStr);
-                    try { //try to copy file
-                        filesystem::copy_file(item, "cache/bad/" + vecStr[vecStr.size() - 1]);
-                        filesystem::remove(item);
-                    }catch(exception &ex2){
-                        logger::error("Copy " +item+ " ERROR: "+ ex2.what());
+                    if(!badProcessing(item))
                         continue;
-                    }
                 }
                 filesystem::remove(item); //remove file after handling
                 delayCounter++;
@@ -138,4 +123,28 @@ void cacheThread::run(){
         timer++;
         this_thread::sleep_for(chrono::milliseconds(1000)); //1sec sleep for timer
     }
+}
+
+bool cacheThread::badProcessing(const string& SQLPath){
+    time(&curr_time);
+    curr_tm = localtime(&curr_time);
+    bzero(dtt, 50);
+    strftime(dtt, 50, "%d-%m-%Y %H_%M_%S", curr_tm);
+
+    if(!filesystem::exists("cache/bad"))
+        filesystem::create_directories("cache/bad");
+
+    const string& filePath = SQLPath;
+    vector<string> vecStr;
+    utils::tokenize(filePath, "/", vecStr);
+    try { //try to copy file
+        if(!filesystem::exists("cache/bad/" + vecStr[vecStr.size() - 2]))
+            filesystem::create_directories("cache/bad/" + vecStr[vecStr.size() - 2]);
+        filesystem::copy_file(SQLPath, "cache/bad/" + vecStr[vecStr.size() - 2] + "/" + vecStr[vecStr.size() - 1] + "_" + dtt);
+        filesystem::remove(SQLPath);
+    }catch(exception &ex2){
+        logger::error("Copy " +SQLPath+ " ERROR: "+ ex2.what());
+        return false;
+    }
+    return true;
 }

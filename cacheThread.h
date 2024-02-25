@@ -29,6 +29,8 @@ public:
     static void run();
 
     static void parseCachePaths(const set<string> &listCachesStr, vector<cacheThread::cache> &caches);
+
+    static bool badProcessing(const string &SQLPath);
 };
 
 
