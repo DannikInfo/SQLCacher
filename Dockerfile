@@ -14,7 +14,7 @@ RUN cmake . && make -j4
 
 FROM ubuntu:latest
 
-RUN apt update -y && apt install -y libmysqlcppconn-dev
+RUN apt update -y && apt install -y libmysqlcppconn7v5
 
 WORKDIR app
 
