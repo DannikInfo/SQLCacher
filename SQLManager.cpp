@@ -8,7 +8,7 @@ void SQLManager::renovateConnection(){
     connected = con != nullptr && (con->isValid() || con->reconnect());
     while(!connected) {
         try {
-            con = driver->connect(config::get<string>(DB_URL), config::get<string>(DB_USER),config::get<string>(DB_PASS));
+            con = driver->connect(config::get<string>(DB_HOST), config::get<string>(DB_USER),config::get<string>(DB_PWD));
             con->setSchema(config::get<string>(DB_NAME));
             connected = con != nullptr && (con->isValid() || con->reconnect());
         } catch (sql::SQLException &ex) {

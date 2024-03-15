@@ -10,6 +10,7 @@
 #include <thread>
 #include <logger.h>
 
+#include <metida/core/configPathsCore.h>
 #include "configPathes.h"
 
 using namespace std;
