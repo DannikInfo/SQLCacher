@@ -102,10 +102,10 @@ void cacheThread::run(){
                 f.close();
 
                 try{ //try to execute SQL from file
-                    logger::success("File " +item+ " try execute with SQL "+ query);
+                    logger::success("File " +item+ " try execute");
                     SQLManager::getConnection()->createStatement()->execute(query);
                 }catch(sql::SQLException &ex){ //if execution failed, copy file to ./cache/bad
-                    logger::error("File " +item+ " error on execute with SQL "+ query +" ERROR: "+ ex.what());
+                    logger::error("File " +item+ " error on execute with ERROR: "+ ex.what());
                     if(!badProcessing(item))
                         continue;
                 }
